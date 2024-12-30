@@ -1,0 +1,104 @@
+.sidenav {
+  width: 250px;
+  height: 100vh;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.sidenav.dark {
+  --bg-color: #1e1e2f;
+  --text-color: #ffffff;
+}
+
+.sidenav.light {
+  --bg-color: #ffffff;
+  --text-color: #000000;
+}
+
+.sidenav-logo {
+  text-align: center;
+}
+
+.sidenav-logo-image {
+  width: 80px;
+  height: auto;
+  margin-bottom: 10px;
+}
+
+.sidenav-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.sidenav-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.search-icon {
+  font-size: 1.2rem;
+}
+
+.search-input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--text-color);
+  border-radius: 4px;
+  background-color: transparent;
+  color: var(--text-color);
+}
+
+.sidenav-plugins {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.plugin-item {
+  padding: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.plugin-item:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.no-plugins {
+  text-align: center;
+  color: gray;
+  margin-top: 20px;
+}
+
+.sidenav-bottom {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.bottom-icon {
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.bottom-icon:hover {
+  color: var(--text-color-hover);
+}
+
+.sidenav.dark .bottom-icon:hover {
+  color: #ffcc00;
+}
+
+.sidenav.light .bottom-icon:hover {
+  color: #007bff;
+}
