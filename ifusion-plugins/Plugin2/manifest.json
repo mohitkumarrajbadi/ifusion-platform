@@ -1,0 +1,9 @@
+{
+    "name": "Plugin 2",
+    "version": "1.0.0",
+    "description": "This is the Plugin 2.",
+    "main": "./Plugin.jsx",
+    "icon": "icon.png",
+    "permissions": ["read", "write"]
+  }
+  

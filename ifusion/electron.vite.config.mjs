@@ -1,19 +1,19 @@
-import { resolve } from 'path';
-import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
-import react from '@vitejs/plugin-react';
+import { resolve } from 'path'
+import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+import react from '@vitejs/plugin-react'
 
 // Define the plugins directory
-const pluginsDir = resolve(__dirname, 'src/plugins');
+const pluginsDir = resolve(__dirname, 'src/plugins')
 
 export default defineConfig({
   // Main process configuration
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin(), react()]
   },
 
   // Preload process configuration
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin(), react()]
   },
 
   // Renderer process configuration
@@ -23,17 +23,17 @@ export default defineConfig({
         // Alias setup for @renderer and @plugins
         '@renderer': resolve(__dirname, 'src/renderer/src'),
         '@plugins': pluginsDir, // Alias for plugins directory
-        'path': 'path-browserify', // Ensure path works in renderer process
-      },
+        path: 'path-browserify' // Ensure path works in renderer process
+      }
     },
     plugins: [react()],
     optimizeDeps: {
-      include: ['path-browserify'], // Ensure path-browserify is bundled for renderer
+      include: ['path-browserify'] // Ensure path-browserify is bundled for renderer
     },
     server: {
       fs: {
-        strict: false, // Avoid file system restrictions when accessing plugins
-      },
-    },
-  },
-});
+        strict: false // Avoid file system restrictions when accessing plugins
+      }
+    }
+  }
+})

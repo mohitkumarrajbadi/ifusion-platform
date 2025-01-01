@@ -1,6 +1,0 @@
-{
-  "name": "NamePrinterPlugin",
-  "description": "A plugin to print input name",
-  "main": "main.js",
-  "component": "NamePrinterComponent.js"
-}

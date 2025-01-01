@@ -1,163 +1,136 @@
-import React, { useState, useEffect, Suspense } from 'react'
+import React, { useState, useEffect, Suspense, lazy } from 'react'
+import MonacoEditor from './uicomponents/MonacoEditor'
 
-// Assuming ErrorComponent is defined somewhere to handle errors gracefully
-function ErrorComponent() {
-  return <div>Error loading plugin component.</div>
-}
+// Define the Loading component
+const Loading = () => <div>Loading...</div>
 
-function PluginManager({ pluginsDir, onThemeToggle, isDarkMode }) {
+const PluginManager = () => {
   const [plugins, setPlugins] = useState([])
-  const [activePluginComponent, setActivePluginComponent] = useState(null)
-  const [pluginResult, setPluginResult] = useState('')
+  const [error, setError] = useState(null)
+  const [selectedPlugin, setSelectedPlugin] = useState(null) // Track selected plugin
 
   useEffect(() => {
-    const loadPlugins = async () => {
-      const fs = window.api.fs
-      const path = window.api.path
+    const fetchPlugins = async () => {
+      try {
+        const pluginsFolderPath = await window.api.path.resolve('..', 'ifusion-plugins')
+        console.log(`[INFO] Checking plugins in: ${pluginsFolderPath}`)
 
-      const resolvedPluginsDir = path.resolve(__dirname, pluginsDir)
-      if (!fs.existsSync(resolvedPluginsDir)) {
-        console.warn(`Plugins directory not found: ${resolvedPluginsDir}`)
-        return
-      }
-
-      const pluginDirs = fs.readdirSync(resolvedPluginsDir)
-      const loadedPlugins = []
-
-      for (const pluginDir of pluginDirs) {
-        const pluginPath = path.join(resolvedPluginsDir, pluginDir)
-        const manifestPath = path.join(pluginPath, 'manifest.json')
-
-        if (fs.existsSync(manifestPath)) {
-          try {
-            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
-            if (manifest.name && manifest.main && manifest.component) {
-              const mainPath = path.join(pluginPath, manifest.main)
-              const componentPath = path.join(pluginPath, manifest.component)
-
-              if (fs.existsSync(mainPath) && fs.existsSync(componentPath)) {
-                const pluginModule = require(mainPath)
-
-                if (typeof pluginModule.execute === 'function') {
-                  loadedPlugins.push({
-                    name: manifest.name,
-                    description: manifest.description || '',
-                    execute: pluginModule.execute,
-                    componentName: manifest.component
-                  })
-                } else {
-                  console.warn(`Plugin "${manifest.name}" is missing the execute function.`)
-                }
-              } else {
-                console.warn(`Main or component file not found for plugin "${manifest.name}".`)
-              }
-            }
-          } catch (err) {
-            console.error(`Error parsing manifest.json for plugin "${pluginDir}":`, err)
-          }
-        }
-      }
-
-      setPlugins(loadedPlugins)
-    }
-
-    loadPlugins()
-  }, [pluginsDir])
-
-  const executePlugin = async (pluginName, input) => {
-    console.log(`Executing plugin: ${pluginName} with input: ${input}`)
-    const selectedPlugin = plugins.find((p) => p.name === pluginName)
-
-    if (!selectedPlugin) {
-      console.error(`Plugin "${pluginName}" not found.`)
-      return
-    }
-
-    try {
-      console.log(`Found plugin "${pluginName}". Executing its logic...`)
-      const result = selectedPlugin.execute(input)
-      console.log('Execution result:', result)
-
-      setPluginResult(result.result)
-
-      const componentPath = result.component
-      console.log('Component path:', componentPath)
-
-      if (typeof componentPath === 'string') {
-        const componentImportPath = `../../../src/renderer/src/plugins/${pluginName}/${componentPath}`
-        console.log(`Importing from path: ${componentImportPath}`)
-
-        const LazyComponent = React.lazy(() =>
-          import(`${componentImportPath}`).catch((err) => {
-            console.error('Error loading the component:', err)
-            return { default: () => <ErrorComponent /> } // Return a fallback component
+        // Check if the folder exists
+        const folderExists = await new Promise((resolve, reject) => {
+          window.api.fs.exists(pluginsFolderPath, (exists) => {
+            if (exists) resolve(true)
+            else reject(new Error(`Plugins folder not found: ${pluginsFolderPath}`))
           })
+        })
+
+        if (!folderExists) return
+
+        // Read the directory contents
+        const directories = await new Promise((resolve, reject) => {
+          window.api.fs.readdir(pluginsFolderPath, { withFileTypes: true }, (err, files) => {
+            if (err) reject(err)
+            else resolve(files)
+          })
+        })
+
+        console.log(`[DEBUG] Contents of ifusion-plugins folder:`, directories)
+
+        const pluginData = await Promise.all(
+          directories
+            .filter((dirent) => dirent.isDirectory())
+            .map(async (dirent) => {
+              const pluginPath = `${pluginsFolderPath}/${dirent.name}`
+              const manifestPath = `${pluginPath}/manifest.json`
+
+              // Check if manifest exists
+              const hasManifest = await new Promise((resolve) => {
+                window.api.fs.exists(manifestPath, (exists) => resolve(exists))
+              })
+
+              if (hasManifest) {
+                // Read the manifest file
+                const manifest = await new Promise((resolve, reject) => {
+                  window.api.fs.readFile(manifestPath, 'utf-8', (err, data) => {
+                    if (err) reject(err)
+                    else resolve(JSON.parse(data))
+                  })
+                })
+
+                console.log(`[DEBUG] Manifest for ${dirent.name}:`, manifest)
+
+                // Lazy load the main component from the manifest's "main" property
+                const MainComponent = lazy(
+                  () => import(/* @vite-ignore */ `${pluginPath}/${manifest.main}`)
+                )
+
+                return {
+                  name: dirent.name,
+                  hasManifest,
+                  manifest,
+                  MainComponent,
+                  pluginPath // Store the plugin path
+                }
+              }
+              return null
+            })
         )
 
-        setActivePluginComponent(LazyComponent)
-      } else {
-        console.error('Invalid component path:', componentPath)
+        // Filter out null results (if no manifest was found)
+        const filteredPlugins = pluginData.filter((plugin) => plugin !== null)
+
+        console.log(`[INFO] Processed plugin data:`, filteredPlugins)
+
+        setPlugins(filteredPlugins)
+      } catch (err) {
+        setError('Failed to load plugins. Check the logs for details.')
+        console.error(`[ERROR] Error fetching plugins:`, err)
       }
-    } catch (error) {
-      console.error(`Error executing plugin "${pluginName}":`, error.message)
     }
+
+    fetchPlugins()
+  }, [])
+
+  const handlePluginClick = (plugin) => {
+    setSelectedPlugin(plugin) // Set the selected plugin
   }
 
-  useEffect(() => {
-    console.log('Active Plugin Component:', activePluginComponent)
-  }, [activePluginComponent])
-
   return (
-    <div
-      className={`app ${isDarkMode ? 'dark' : 'light'}`}
-      style={{ display: 'flex', height: '100vh' }}
-    >
-      <div
-        style={{
-          flex: 1,
-          padding: '20px',
-          backgroundColor: isDarkMode ? '#333' : '#f4f4f4',
-          color: isDarkMode ? '#fff' : '#000'
-        }}
-      >
-        <h3>Plugins</h3>
-        <button onClick={onThemeToggle} style={{ marginBottom: '10px' }}>
-          Toggle Theme
-        </button>
-        <ul style={{ listStyleType: 'none', padding: 0 }}>
-          {plugins.map(({ name }) => (
-            <li key={name} style={{ marginBottom: '10px' }}>
-              <button
-                onClick={() => executePlugin(name, '{"key": "value"}')}
-                style={{ width: '100%' }}
-              >
-                {name}
-              </button>
+    <div>
+      <h2>Plugin Manager</h2>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {!error && plugins.length === 0 && <div>Loading plugins...</div>}
+      <div style={{ display: 'flex' }}>
+        <ul style={{ flex: 1, paddingRight: '20px' }}>
+          {plugins.map((plugin, index) => (
+            <li key={index} style={{ marginBottom: '20px' }}>
+              <div>
+                <h3>{plugin.manifest.name}</h3>
+                <p>{plugin.manifest.description}</p>
+                <p>Version: {plugin.manifest.version}</p>
+                {plugin.manifest.icon && (
+                  <img
+                    src={`${plugin.pluginPath}/${plugin.manifest.icon}`} // Dynamically load image
+                    alt="Plugin Icon"
+                    style={{ width: '50px', height: '50px', marginBottom: '10px' }}
+                  />
+                )}
+                <button onClick={() => handlePluginClick(plugin)}>View Plugin</button>
+              </div>
             </li>
           ))}
         </ul>
-      </div>
 
-      <div
-        style={{
-          flex: 2,
-          padding: '20px',
-          backgroundColor: isDarkMode ? '#222' : '#fff',
-          color: isDarkMode ? '#fff' : '#000'
-        }}
-      >
-        {activePluginComponent ? (
-          <div>
-            <h3>Plugin Output</h3>
-            <div>{pluginResult}</div>
-            <Suspense fallback={<div>Loading plugin component...</div>}>
-              {React.createElement(activePluginComponent)}
+        {/* Display selected plugin's component */}
+        {selectedPlugin && (
+          <div style={{ flex: 2, paddingLeft: '20px', borderLeft: '1px solid #ccc' }}>
+            <h3>{selectedPlugin.manifest.name} Plugin</h3>
+            <Suspense fallback={<Loading />}>
+              <selectedPlugin.MainComponent />
             </Suspense>
           </div>
-        ) : (
-          <p>Please select a plugin to see its output.</p>
         )}
       </div>
+      <p>Total Plugins: {plugins.length}</p>
     </div>
   )
 }

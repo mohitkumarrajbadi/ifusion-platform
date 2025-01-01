@@ -1,0 +1,9 @@
+{
+    "name": "ExamplePlugin",
+    "version": "1.0.0",
+    "description": "An example plugin to demonstrate functionality.",
+    "main": "./Plugin.jsx",
+    "icon": "icon.png",
+    "permissions": ["read", "write"]
+  }
+  

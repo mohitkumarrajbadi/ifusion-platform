@@ -1,17 +1,13 @@
-import React, { useState } from 'react';
-import PluginManager from './sdk/PluginManager';
+import React, { useEffect, useState } from 'react'
+import PluginManager from './sdk/PluginManager'
 
-function App() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const toggleTheme = () => setIsDarkMode(!isDarkMode);
-
+const App = () => {
   return (
-    <PluginManager
-      pluginsDir="../../src/renderer/src/plugins"
-      onThemeToggle={toggleTheme}
-      isDarkMode={isDarkMode}
-    />
-  );
+    <div>
+      <h1>My Modular App</h1>
+      <PluginManager />
+    </div>
+  )
 }
 
-export default App;
+export default App
